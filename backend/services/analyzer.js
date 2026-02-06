@@ -406,18 +406,35 @@ class Analyzer {
   }
 
   calculateScore() {
+    // Compter les issues par priorité
     const criticalCount = this.issues.errors.filter(e => e.priority === 'CRITICAL').length;
     const highCount = this.issues.errors.filter(e => e.priority === 'HIGH').length;
-    const mediumCount = this.issues.warnings.filter(w => w.priority === 'MEDIUM').length;
+    const mediumErrors = this.issues.errors.filter(e => e.priority === 'MEDIUM').length;
+    const lowErrors = this.issues.errors.filter(e => e.priority === 'LOW').length;
+    
+    const highWarnings = this.issues.warnings.filter(w => w.priority === 'HIGH').length;
+    const mediumWarnings = this.issues.warnings.filter(w => w.priority === 'MEDIUM').length;
+    const lowWarnings = this.issues.warnings.filter(w => w.priority === 'LOW').length;
+    
+    const highOpportunities = this.issues.opportunities.filter(o => o.priority === 'HIGH').length;
+    const mediumOpportunities = this.issues.opportunities.filter(o => o.priority === 'MEDIUM').length;
+    const lowOpportunities = this.issues.opportunities.filter(o => o.priority === 'LOW').length;
     
     let score = 100;
     
-    // Pénalités
-    score -= criticalCount * 20;
-    score -= highCount * 10;
-    score -= mediumCount * 5;
-    score -= this.issues.warnings.length * 2;
-    score -= this.issues.opportunities.length * 1;
+    // Pénalités par priorité (ne plus compter 2 fois !)
+    score -= criticalCount * 15;      // CRITICAL : -15 points chacune
+    score -= highCount * 8;            // HIGH erreur : -8 points chacune
+    score -= mediumErrors * 4;         // MEDIUM erreur : -4 points
+    score -= lowErrors * 2;            // LOW erreur : -2 points
+    
+    score -= highWarnings * 3;         // HIGH warning : -3 points
+    score -= mediumWarnings * 2;       // MEDIUM warning : -2 points
+    score -= lowWarnings * 1;          // LOW warning : -1 point
+    
+    score -= highOpportunities * 1;    // HIGH opportunité : -1 point
+    score -= mediumOpportunities * 0.5; // MEDIUM opportunité : -0.5 point
+    score -= lowOpportunities * 0.2;   // LOW opportunité : -0.2 point
     
     return Math.max(0, Math.min(100, Math.round(score)));
   }
