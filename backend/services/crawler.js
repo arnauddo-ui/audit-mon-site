@@ -75,7 +75,7 @@ class Crawler {
         robotsTxt: this.robotsTxt,
         sitemap: this.sitemap,
         totalPages: this.pages.length,
-        maxDepth: Math.max(...this.pages.map(p => p.depth || 0))
+        maxDepth: this.pages.length > 0 ? Math.max(...this.pages.map(p => p.depth || 0)) : 0
       }
     };
   }
