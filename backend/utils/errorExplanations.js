@@ -279,6 +279,118 @@ const errorExplanations = {
     how: 'Rendez chaque H1 unique et spécifique à la page.',
     example: 'Variez les H1 selon le contexte de chaque page',
     impact: 'Moyen - Confusion thématique'
+  },
+
+  // === NOUVELLES ERREURS V2.0 ===
+
+  'broken_link': {
+    title: 'Lien cassé (404)',
+    severity: 'HIGH',
+    category: 'Maillage interne',
+    description: 'Cette page contient un lien vers une page qui n\'existe pas (erreur 404).',
+    why: 'Les liens cassés nuisent à l\'expérience utilisateur et au crawl de Google.',
+    how: 'Corrigez le lien pour qu\'il pointe vers une page valide, ou supprimez-le.',
+    example: 'Remplacez le lien cassé ou créez une redirection 301',
+    impact: 'Élevé - Perte d\'autorité + mauvaise expérience utilisateur'
+  },
+
+  'orphan_page': {
+    title: 'Page orpheline',
+    severity: 'HIGH',
+    category: 'Maillage interne',
+    description: 'Cette page n\'a aucun lien interne qui pointe vers elle. Elle est isolée du reste du site.',
+    why: 'Google aura du mal à découvrir et indexer cette page. Elle ne reçoit pas de "jus SEO".',
+    how: 'Ajoutez des liens depuis d\'autres pages pertinentes de votre site vers cette page.',
+    example: 'Ajoutez un lien dans le menu, le footer, ou depuis un article connexe',
+    impact: 'Élevé - Page invisible pour Google'
+  },
+
+  'redirect_chain': {
+    title: 'Chaîne de redirections',
+    severity: 'HIGH',
+    category: 'Technique',
+    description: 'Cette URL passe par plusieurs redirections (301 → 301 → 301) avant d\'arriver à la page finale.',
+    why: 'Les chaînes de redirections ralentissent le chargement et diluent le "jus SEO".',
+    how: 'Faites rediriger directement vers la page finale, sans étapes intermédiaires.',
+    example: 'Au lieu de A→B→C, faites A→C et B→C directement',
+    impact: 'Élevé - Perte de vitesse + dilution du SEO'
+  },
+
+  'sitemap_missing': {
+    title: 'Sitemap.xml manquant',
+    severity: 'HIGH',
+    category: 'Indexation',
+    description: 'Votre site n\'a pas de fichier sitemap.xml.',
+    why: 'Le sitemap aide Google à découvrir toutes vos pages. Sans lui, certaines pages peuvent ne pas être indexées.',
+    how: 'Créez un sitemap.xml avec toutes vos URLs et soumettez-le dans Google Search Console.',
+    example: 'Utilisez un plugin (Yoast, RankMath) ou générateur en ligne',
+    impact: 'Élevé - Pages non indexées par Google'
+  },
+
+  'sitemap_incomplete': {
+    title: 'Sitemap incomplet',
+    severity: 'MEDIUM',
+    category: 'Indexation',
+    description: 'Votre sitemap.xml contient moins d\'URLs que de pages découvertes sur votre site.',
+    why: 'Des pages manquent dans le sitemap. Google pourrait ne pas les découvrir.',
+    how: 'Mettez à jour votre sitemap pour inclure TOUTES les pages publiques de votre site.',
+    example: 'Régénérez votre sitemap avec un plugin ou outil automatique',
+    impact: 'Moyen - Certaines pages peuvent ne pas être indexées'
+  },
+
+  'robots_txt_missing': {
+    title: 'Robots.txt manquant',
+    severity: 'MEDIUM',
+    category: 'Indexation',
+    description: 'Votre site n\'a pas de fichier robots.txt.',
+    why: 'Le robots.txt guide les robots Google. Sans lui, vous n\'avez aucun contrôle sur ce qui est crawlé.',
+    how: 'Créez un fichier robots.txt à la racine de votre site avec les directives basiques.',
+    example: 'User-agent: *\\nAllow: /\\nSitemap: https://votresite.com/sitemap.xml',
+    impact: 'Moyen - Perte de contrôle sur le crawl'
+  },
+
+  'excessive_depth': {
+    title: 'Profondeur excessive',
+    severity: 'MEDIUM',
+    category: 'Architecture',
+    description: 'Cette page est trop loin de la homepage (plus de 3 clics).',
+    why: 'Plus une page est profonde, moins elle reçoit de "jus SEO" et moins Google la crawle.',
+    how: 'Ajoutez des liens depuis des pages plus proches de la homepage (menu, catégories).',
+    example: 'Ajoutez cette page dans le menu principal ou créez une page catégorie',
+    impact: 'Moyen - Page moins crawlée et moins puissante'
+  },
+
+  'hreflang_incomplete': {
+    title: 'Hreflang incomplet',
+    severity: 'MEDIUM',
+    category: 'International',
+    description: 'Certaines pages ont hreflang mais pas toutes.',
+    why: 'Si vous utilisez hreflang, TOUTES les pages équivalentes doivent en avoir.',
+    how: 'Ajoutez hreflang sur toutes les versions linguistiques de vos pages.',
+    example: '<link rel="alternate" hreflang="fr" href="https://site.fr/page" />',
+    impact: 'Moyen - Confusion dans les résultats internationaux'
+  },
+
+  'pagination_broken': {
+    title: 'Pagination cassée',
+    severity: 'MEDIUM',
+    category: 'Pagination',
+    description: 'Les balises rel="next" ou rel="prev" pointent vers des pages qui n\'existent pas.',
+    why: 'La pagination cassée empêche Google de comprendre la structure de vos pages paginées.',
+    how: 'Corrigez les liens de pagination pour qu\'ils pointent vers des pages valides.',
+    example: 'Vérifiez que toutes les pages de la série de pagination existent',
+    impact: 'Moyen - Mauvaise indexation des pages paginées'
+  },
+
+  'amp_detected': {
+    title: 'AMP détecté',
+    severity: 'LOW',
+    category: 'Performance',
+    description: 'Votre site utilise AMP (Accelerated Mobile Pages).',
+    why: 'AMP peut améliorer la vitesse mobile, mais nécessite une maintenance supplémentaire.',
+    how: 'Vérifiez que vos pages AMP sont correctement configurées et validées.',
+    example: 'Testez vos URLs AMP avec l\'outil de validation Google',
+    impact: 'Faible - Opportunité d\'optimisation mobile'
   }
 };
 
