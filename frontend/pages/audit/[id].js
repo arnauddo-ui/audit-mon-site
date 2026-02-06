@@ -42,7 +42,35 @@ export default function AuditDetail() {
       
       if (!response.ok) throw new Error('Audit non trouvé');
       const data = await response.json();
-      setAudit(data);
+      
+      // Transformer les données du backend vers le format attendu
+      const transformedData = {
+        ...data,
+        results: {
+          score: data.score || 0,
+          stats: {
+            pagesAnalyzed: data.total_pages || 0,
+            totalErrors: data.total_errors || 0,
+            totalWarnings: data.total_warnings || 0,
+            totalOpportunities: data.total_opportunities || 0
+          },
+          issues: (() => {
+            // Parser les issues selon leur format
+            if (!data.issues) return { errors: [], warnings: [], opportunities: [] };
+            if (typeof data.issues === 'string') {
+              try {
+                return JSON.parse(data.issues);
+              } catch (e) {
+                return { errors: [], warnings: [], opportunities: [] };
+              }
+            }
+            return data.issues;
+          })(),
+          pagesAnalyzed: data.total_pages || 0
+        }
+      };
+      
+      setAudit(transformedData);
     } catch (err) {
       setError(err.message);
     } finally {
