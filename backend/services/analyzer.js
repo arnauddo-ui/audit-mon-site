@@ -1,3 +1,5 @@
+const errorExplanations = require('../utils/errorExplanations');
+
 class Analyzer {
   constructor(pages) {
     this.pages = pages;
@@ -68,20 +70,20 @@ class Analyzer {
   checkMetaTags(page) {
     // Title
     if (!page.title || page.title.length === 0) {
-      this.addError(page.url, 'Title manquant', 'La balise <title> est absente', 'HIGH');
+      this.addError(page.url, 'Title manquant', 'La balise <title> est absente', 'CRITICAL', 'missing_title');
     } else if (page.title.length < 30) {
-      this.addWarning(page.url, 'Title trop court', `${page.title.length} caractères (min recommandé: 30)`, 'MEDIUM');
+      this.addWarning(page.url, 'Title trop court', `${page.title.length} caractères (min recommandé: 30)`, 'HIGH', 'title_too_short');
     } else if (page.title.length > 60) {
-      this.addWarning(page.url, 'Title trop long', `${page.title.length} caractères (max recommandé: 60)`, 'MEDIUM');
+      this.addWarning(page.url, 'Title trop long', `${page.title.length} caractères (max recommandé: 60)`, 'HIGH', 'title_too_long');
     }
     
     // Meta description
     if (!page.metaDescription || page.metaDescription.length === 0) {
-      this.addWarning(page.url, 'Meta description manquante', 'Aucune meta description définie', 'HIGH');
+      this.addWarning(page.url, 'Meta description manquante', 'Aucune meta description définie', 'HIGH', 'missing_meta_description');
     } else if (page.metaDescription.length < 120) {
-      this.addWarning(page.url, 'Meta description trop courte', `${page.metaDescription.length} caractères (min recommandé: 120)`, 'LOW');
+      this.addWarning(page.url, 'Meta description trop courte', `${page.metaDescription.length} caractères (min recommandé: 120)`, 'MEDIUM', 'meta_description_too_short');
     } else if (page.metaDescription.length > 160) {
-      this.addWarning(page.url, 'Meta description trop longue', `${page.metaDescription.length} caractères (max recommandé: 160)`, 'LOW');
+      this.addWarning(page.url, 'Meta description trop longue', `${page.metaDescription.length} caractères (max recommandé: 160)`, 'MEDIUM', 'meta_description_too_long');
     }
     
     // Meta keywords (obsolète)
@@ -91,40 +93,40 @@ class Analyzer {
     
     // Canonical
     if (!page.canonical) {
-      this.addOpportunity(page.url, 'Canonical manquant', 'Considérez ajouter une balise canonical', 'MEDIUM');
+      this.addOpportunity(page.url, 'Canonical manquant', 'Considérez ajouter une balise canonical', 'MEDIUM', 'missing_canonical');
     }
     
     // Open Graph
     if (!page.ogTitle || !page.ogDescription || !page.ogImage) {
-      this.addOpportunity(page.url, 'Open Graph incomplet', 'Optimisez pour le partage sur les réseaux sociaux', 'LOW');
+      this.addOpportunity(page.url, 'Open Graph incomplet', 'Optimisez pour le partage sur les réseaux sociaux', 'LOW', 'missing_og');
     }
   }
 
   checkHeadings(page) {
     // H1
     if (page.h1.length === 0) {
-      this.addError(page.url, 'H1 manquant', 'Aucune balise H1 détectée', 'HIGH');
+      this.addError(page.url, 'H1 manquant', 'Aucune balise H1 détectée', 'CRITICAL', 'missing_h1');
     } else if (page.h1.length > 1) {
-      this.addWarning(page.url, 'Plusieurs H1', `${page.h1.length} balises H1 (recommandé: 1 seule)`, 'MEDIUM');
+      this.addWarning(page.url, 'Plusieurs H1', `${page.h1.length} balises H1 (recommandé: 1 seule)`, 'HIGH', 'multiple_h1');
     } else if (page.h1[0].length > 70) {
-      this.addWarning(page.url, 'H1 trop long', `${page.h1[0].length} caractères (max recommandé: 70)`, 'LOW');
+      this.addWarning(page.url, 'H1 trop long', `${page.h1[0].length} caractères (max recommandé: 70)`, 'MEDIUM', 'h1_too_long');
     }
     
     // Sous-titres
     if (page.h2Count === 0 && page.wordCount > 300) {
-      this.addOpportunity(page.url, 'Aucun H2', 'Structurez votre contenu avec des sous-titres', 'MEDIUM');
+      this.addOpportunity(page.url, 'Aucun H2', 'Structurez votre contenu avec des sous-titres', 'MEDIUM', 'missing_h2');
     }
   }
 
   checkContent(page) {
     // Contenu trop court
     if (page.wordCount < 300 && page.statusCode === 200) {
-      this.addWarning(page.url, 'Contenu court', `${page.wordCount} mots (min recommandé: 300)`, 'MEDIUM');
+      this.addWarning(page.url, 'Contenu court', `${page.wordCount} mots (min recommandé: 300)`, 'HIGH', 'thin_content');
     }
     
     // Pas de contenu
     if (page.wordCount < 50) {
-      this.addError(page.url, 'Contenu très faible', 'Page quasi-vide', 'HIGH');
+      this.addError(page.url, 'Contenu très faible', 'Page quasi-vide', 'CRITICAL', 'very_thin_content');
     }
     
     // Ratio contenu/HTML
@@ -138,9 +140,9 @@ class Analyzer {
     page.images.forEach((img, index) => {
       // Alt manquant
       if (!img.alt || img.alt.length === 0) {
-        this.addWarning(page.url, `Image ${index + 1} sans alt`, 'Attribut alt manquant pour l\'accessibilité', 'MEDIUM');
+        this.addWarning(page.url, `Image ${index + 1} sans alt`, 'Attribut alt manquant pour l\'accessibilité', 'HIGH', 'missing_alt');
       } else if (img.alt.length > 125) {
-        this.addWarning(page.url, `Image ${index + 1} alt trop long`, `${img.alt.length} caractères`, 'LOW');
+        this.addWarning(page.url, `Image ${index + 1} alt trop long`, `${img.alt.length} caractères`, 'LOW', 'alt_too_long');
       }
       
       // Dimensions manquantes
@@ -150,7 +152,7 @@ class Analyzer {
       
       // Lazy loading
       if (index > 2 && img.loading !== 'lazy') {
-        this.addOpportunity(page.url, `Image ${index + 1} pas en lazy load`, 'Améliorer les performances', 'LOW');
+        this.addOpportunity(page.url, `Image ${index + 1} pas en lazy load`, 'Améliorer les performances', 'LOW', 'image_no_lazy_load');
       }
     });
   }
@@ -250,16 +252,58 @@ class Analyzer {
     });
   }
 
-  addError(url, title, description, priority) {
-    this.issues.errors.push({ url, title, description, priority, type: 'error' });
+  addError(url, title, description, priority, errorType = null) {
+    const issue = { 
+      url, 
+      title, 
+      description, 
+      priority, 
+      type: 'error'
+    };
+    
+    // Ajouter l'explication si disponible
+    if (errorType && errorExplanations[errorType]) {
+      issue.explanation = errorExplanations[errorType];
+      issue.errorType = errorType;
+    }
+    
+    this.issues.errors.push(issue);
   }
 
-  addWarning(url, title, description, priority) {
-    this.issues.warnings.push({ url, title, description, priority, type: 'warning' });
+  addWarning(url, title, description, priority, errorType = null) {
+    const issue = {
+      url,
+      title,
+      description,
+      priority,
+      type: 'warning'
+    };
+    
+    // Ajouter l'explication si disponible
+    if (errorType && errorExplanations[errorType]) {
+      issue.explanation = errorExplanations[errorType];
+      issue.errorType = errorType;
+    }
+    
+    this.issues.warnings.push(issue);
   }
 
-  addOpportunity(url, title, description, priority) {
-    this.issues.opportunities.push({ url, title, description, priority, type: 'opportunity' });
+  addOpportunity(url, title, description, priority, errorType = null) {
+    const issue = {
+      url,
+      title,
+      description,
+      priority,
+      type: 'opportunity'
+    };
+    
+    // Ajouter l'explication si disponible
+    if (errorType && errorExplanations[errorType]) {
+      issue.explanation = errorExplanations[errorType];
+      issue.errorType = errorType;
+    }
+    
+    this.issues.opportunities.push(issue);
   }
 
   calculateScore() {

@@ -1,293 +1,334 @@
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/router'
-import Head from 'next/head'
-import axios from 'axios'
-import Link from 'next/link'
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import Head from 'next/head';
+import Link from 'next/link';
+import styles from '../../styles/AuditDetail.module.css';
+import ErrorCard from '../../components/ErrorCard';
 
-export default function AuditResult() {
-  const router = useRouter()
-  const { id } = router.query
-  const [audit, setAudit] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-
+export default function AuditDetail() {
+  const router = useRouter();
+  const { id } = router.query;
+  
+  const [audit, setAudit] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // États pour l'interface
+  const [activeTab, setActiveTab] = useState('errors'); // 'errors', 'warnings', 'opportunities'
+  const [viewMode, setViewMode] = useState('byType'); // 'byType', 'byPage'
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedPriority, setSelectedPriority] = useState('all'); // 'all', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'
+  
   useEffect(() => {
-    if (!id) return
-
-    const token = localStorage.getItem('token')
-    if (!token) {
-      router.push('/')
-      return
+    if (id) {
+      fetchAudit();
     }
+  }, [id]);
 
-    loadAudit(token)
-    
-    // Poll toutes les 5 secondes si l'audit est en cours
-    const interval = setInterval(() => {
-      if (audit?.status === 'pending') {
-        loadAudit(token, false)
-      }
-    }, 5000)
-
-    return () => clearInterval(interval)
-  }, [id, audit?.status])
-
-  const loadAudit = async (token, showLoading = true) => {
+  const fetchAudit = async () => {
     try {
-      if (showLoading) setLoading(true)
-      
-      const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/audit/${id}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-      
-      setAudit(response.data)
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/audits/${id}`);
+      if (!response.ok) throw new Error('Audit non trouvé');
+      const data = await response.json();
+      setAudit(data);
     } catch (err) {
-      setError(err.response?.data?.error || 'Erreur de chargement')
-      if (err.response?.status === 401) {
-        router.push('/')
-      }
+      setError(err.message);
     } finally {
-      if (showLoading) setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const downloadPPT = () => {
-    if (!audit?.ppt_path) return
-    
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
-    window.open(`${apiUrl}${audit.ppt_path}`, '_blank')
-  }
+  const downloadReport = async () => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/audits/${id}/download`);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `audit_${id}.pptx`;
+      a.click();
+    } catch (err) {
+      alert('Erreur lors du téléchargement');
+    }
+  };
 
-  const getScoreColor = (score) => {
-    if (score >= 80) return 'text-green-600'
-    if (score >= 60) return 'text-yellow-600'
-    return 'text-red-600'
-  }
+  // Grouper les issues par type d'erreur
+  const groupIssuesByType = (issues) => {
+    const grouped = {};
+    issues.forEach(issue => {
+      const key = issue.errorType || issue.title;
+      if (!grouped[key]) {
+        grouped[key] = {
+          ...issue,
+          issues: []
+        };
+      }
+      grouped[key].issues.push(issue);
+    });
+    return Object.values(grouped);
+  };
 
-  const getScoreBg = (score) => {
-    if (score >= 80) return 'bg-green-100'
-    if (score >= 60) return 'bg-yellow-100'
-    return 'bg-red-100'
-  }
+  // Grouper les issues par page
+  const groupIssuesByPage = (issues) => {
+    const grouped = {};
+    issues.forEach(issue => {
+      if (!grouped[issue.url]) {
+        grouped[issue.url] = [];
+      }
+      grouped[issue.url].push(issue);
+    });
+    return grouped;
+  };
+
+  // Filtrer les issues
+  const filterIssues = (issues) => {
+    let filtered = issues;
+
+    // Filtre par priorité
+    if (selectedPriority !== 'all') {
+      filtered = filtered.filter(i => i.priority === selectedPriority);
+    }
+
+    // Filtre par recherche
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(i => 
+        i.title?.toLowerCase().includes(term) ||
+        i.url?.toLowerCase().includes(term) ||
+        i.description?.toLowerCase().includes(term)
+      );
+    }
+
+    return filtered;
+  };
+
+  // Calculer la progression
+  const calculateProgress = (issues) => {
+    let totalChecked = 0;
+    let total = 0;
+
+    issues.forEach(issue => {
+      const key = issue.errorType || issue.title;
+      const saved = localStorage.getItem(`checklist_${key}`);
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (data.groupChecked) totalChecked++;
+      }
+      total++;
+    });
+
+    return { totalChecked, total, percentage: total > 0 ? Math.round((totalChecked / total) * 100) : 0 };
+  };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-xl text-gray-600">Chargement de l'audit...</p>
-        </div>
+      <div className={styles.loading}>
+        <div className={styles.spinner}></div>
+        <p>Chargement de l'audit...</p>
       </div>
-    )
+    );
   }
 
-  if (error) {
+  if (error || !audit) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="card max-w-md text-center">
-          <div className="text-red-500 text-6xl mb-4">❌</div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Erreur</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <Link href="/dashboard">
-            <button className="btn btn-primary">Retour au dashboard</button>
-          </Link>
-        </div>
+      <div className={styles.error}>
+        <h1>❌ Erreur</h1>
+        <p>{error || 'Audit introuvable'}</p>
+        <Link href="/dashboard">
+          <a className={styles.backBtn}>← Retour au tableau de bord</a>
+        </Link>
       </div>
-    )
+    );
   }
+
+  const currentIssues = audit.results.issues[activeTab] || [];
+  const filteredIssues = filterIssues(currentIssues);
+  const progress = calculateProgress(filteredIssues);
 
   return (
     <>
       <Head>
-        <title>Audit #{id} - Audit Mon Site</title>
+        <title>Audit de {audit.url} | Audit Mon Site</title>
       </Head>
 
-      <div className="min-h-screen bg-gray-50">
-        <header className="bg-white shadow">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-primary">Résultats de l'Audit</h1>
-                <p className="text-sm text-gray-600 mt-1">{audit.url}</p>
+      <div className={styles.container}>
+        {/* Header */}
+        <div className={styles.header}>
+          <div>
+            <Link href="/dashboard">
+              <a className={styles.backLink}>← Tableau de bord</a>
+            </Link>
+            <h1 className={styles.pageTitle}>Audit SEO</h1>
+            <p className={styles.url}>{audit.url}</p>
+          </div>
+          
+          <button onClick={downloadReport} className={styles.downloadBtn}>
+            📥 Télécharger le rapport PowerPoint
+          </button>
+        </div>
+
+        {/* Score global */}
+        <div className={styles.scoreCard}>
+          <div className={styles.scoreCircle}>
+            <div 
+              className={styles.scoreValue} 
+              style={{ color: audit.results.score >= 70 ? '#10b981' : audit.results.score >= 40 ? '#f59e0b' : '#dc2626' }}
+            >
+              {audit.results.score}
+            </div>
+            <div className={styles.scoreLabel}>sur 100</div>
+          </div>
+
+          <div className={styles.scoreStats}>
+            <div className={styles.statItem}>
+              <div className={styles.statLabel}>Pages analysées</div>
+              <div className={styles.statValue}>{audit.results.stats.pagesAnalyzed}</div>
+            </div>
+            <div className={styles.statItem}>
+              <div className={styles.statLabel}>Erreurs</div>
+              <div className={styles.statValue} style={{ color: '#dc2626' }}>
+                {audit.results.stats.totalErrors}
               </div>
-              <Link href="/dashboard">
-                <button className="btn bg-gray-200 text-gray-700 hover:bg-gray-300">
-                  ← Retour
-                </button>
-              </Link>
+            </div>
+            <div className={styles.statItem}>
+              <div className={styles.statLabel}>Avertissements</div>
+              <div className={styles.statValue} style={{ color: '#f59e0b' }}>
+                {audit.results.stats.totalWarnings}
+              </div>
+            </div>
+            <div className={styles.statItem}>
+              <div className={styles.statLabel}>Opportunités</div>
+              <div className={styles.statValue} style={{ color: '#3b82f6' }}>
+                {audit.results.stats.totalOpportunities}
+              </div>
             </div>
           </div>
-        </header>
+        </div>
 
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {audit.status === 'pending' && (
-            <div className="card mb-8 bg-yellow-50 border border-yellow-200">
-              <div className="flex items-center gap-4">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-yellow-600"></div>
-                <div>
-                  <h3 className="font-semibold text-yellow-900">Audit en cours...</h3>
-                  <p className="text-sm text-yellow-800">
-                    L'analyse est en cours. Cette page se mettra à jour automatiquement.
-                  </p>
-                </div>
-              </div>
+        {/* Progression */}
+        {progress.total > 0 && (
+          <div className={styles.progressCard}>
+            <div className={styles.progressHeader}>
+              <span className={styles.progressTitle}>📊 Votre progression</span>
+              <span className={styles.progressStats}>{progress.totalChecked}/{progress.total} ({progress.percentage}%)</span>
             </div>
-          )}
-
-          {audit.status === 'failed' && (
-            <div className="card mb-8 bg-red-50 border border-red-200">
-              <h3 className="font-semibold text-red-900 mb-2">Audit échoué</h3>
-              <p className="text-sm text-red-800">
-                {audit.crawl_data?.error || 'Une erreur est survenue lors de l\'audit.'}
-              </p>
+            <div className={styles.progressBar}>
+              <div 
+                className={styles.progressFill} 
+                style={{ width: `${progress.percentage}%` }}
+              ></div>
             </div>
-          )}
+          </div>
+        )}
 
-          {audit.status === 'completed' && (
+        {/* Onglets */}
+        <div className={styles.tabs}>
+          <button
+            className={`${styles.tab} ${activeTab === 'errors' ? styles.activeTab : ''}`}
+            onClick={() => setActiveTab('errors')}
+          >
+            ❌ Erreurs ({audit.results.issues.errors?.length || 0})
+          </button>
+          <button
+            className={`${styles.tab} ${activeTab === 'warnings' ? styles.activeTab : ''}`}
+            onClick={() => setActiveTab('warnings')}
+          >
+            ⚠️ Avertissements ({audit.results.issues.warnings?.length || 0})
+          </button>
+          <button
+            className={`${styles.tab} ${activeTab === 'opportunities' ? styles.activeTab : ''}`}
+            onClick={() => setActiveTab('opportunities')}
+          >
+            💡 Opportunités ({audit.results.issues.opportunities?.length || 0})
+          </button>
+        </div>
+
+        {/* Contrôles */}
+        <div className={styles.controls}>
+          <div className={styles.viewModeToggle}>
+            <button
+              className={`${styles.viewBtn} ${viewMode === 'byType' ? styles.activeViewBtn : ''}`}
+              onClick={() => setViewMode('byType')}
+            >
+              Par type d'erreur
+            </button>
+            <button
+              className={`${styles.viewBtn} ${viewMode === 'byPage' ? styles.activeViewBtn : ''}`}
+              onClick={() => setViewMode('byPage')}
+            >
+              Par page
+            </button>
+          </div>
+
+          <div className={styles.filters}>
+            <select 
+              value={selectedPriority}
+              onChange={(e) => setSelectedPriority(e.target.value)}
+              className={styles.priorityFilter}
+            >
+              <option value="all">Toutes les priorités</option>
+              <option value="CRITICAL">Critique uniquement</option>
+              <option value="HIGH">Élevé uniquement</option>
+              <option value="MEDIUM">Moyen uniquement</option>
+              <option value="LOW">Faible uniquement</option>
+            </select>
+
+            <input
+              type="text"
+              placeholder="🔍 Rechercher..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className={styles.searchInput}
+            />
+          </div>
+        </div>
+
+        {/* Contenu */}
+        <div className={styles.content}>
+          {filteredIssues.length === 0 ? (
+            <div className={styles.emptyState}>
+              <p>🎉 Aucun problème trouvé dans cette catégorie !</p>
+            </div>
+          ) : (
             <>
-              {/* Score global */}
-              <div className="card mb-8 text-center">
-                <h2 className="text-xl font-semibold text-gray-700 mb-4">Score Global</h2>
-                <div className={`inline-flex items-center justify-center w-32 h-32 rounded-full ${getScoreBg(audit.score)} mb-4`}>
-                  <span className={`text-5xl font-bold ${getScoreColor(audit.score)}`}>
-                    {audit.score}
-                  </span>
+              {viewMode === 'byType' ? (
+                <div className={styles.issuesList}>
+                  {groupIssuesByType(filteredIssues).map((group, idx) => (
+                    <ErrorCard
+                      key={idx}
+                      issue={group}
+                      groupedIssues={group.issues}
+                    />
+                  ))}
                 </div>
-                <p className="text-gray-600 mb-6">sur 100</p>
-                
-                {audit.ppt_path && (
-                  <button
-                    onClick={downloadPPT}
-                    className="btn btn-success text-lg px-8 py-3"
-                  >
-                    📥 Télécharger le rapport PowerPoint
-                  </button>
-                )}
-              </div>
-
-              {/* Stats */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <div className="card text-center">
-                  <h3 className="text-sm font-medium text-gray-600 mb-2">Pages Analysées</h3>
-                  <p className="text-3xl font-bold text-primary">{audit.total_pages}</p>
-                </div>
-                <div className="card text-center">
-                  <h3 className="text-sm font-medium text-gray-600 mb-2">Erreurs</h3>
-                  <p className="text-3xl font-bold text-red-600">{audit.total_errors}</p>
-                </div>
-                <div className="card text-center">
-                  <h3 className="text-sm font-medium text-gray-600 mb-2">Avertissements</h3>
-                  <p className="text-3xl font-bold text-yellow-600">{audit.total_warnings}</p>
-                </div>
-                <div className="card text-center">
-                  <h3 className="text-sm font-medium text-gray-600 mb-2">Opportunités</h3>
-                  <p className="text-3xl font-bold text-blue-600">{audit.total_opportunities}</p>
-                </div>
-              </div>
-
-              {/* Web Vitals */}
-              {audit.web_vitals && (
-                <div className="card mb-8">
-                  <h2 className="text-xl font-bold text-gray-900 mb-4">Core Web Vitals</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <h3 className="text-sm font-medium text-gray-600 mb-2">LCP</h3>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {audit.web_vitals.metrics?.lcp?.displayValue || 'N/A'}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">Largest Contentful Paint</p>
-                    </div>
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <h3 className="text-sm font-medium text-gray-600 mb-2">FID/TBT</h3>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {audit.web_vitals.metrics?.fid?.displayValue || 'N/A'}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">First Input Delay</p>
-                    </div>
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <h3 className="text-sm font-medium text-gray-600 mb-2">CLS</h3>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {audit.web_vitals.metrics?.cls?.displayValue || 'N/A'}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">Cumulative Layout Shift</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Top Issues */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Erreurs */}
-                <div className="card">
-                  <h3 className="text-lg font-bold text-red-600 mb-4">
-                    🔴 Erreurs ({audit.issues?.errors?.length || 0})
-                  </h3>
-                  <div className="space-y-3 max-h-96 overflow-y-auto">
-                    {audit.issues?.errors?.slice(0, 10).map((issue, index) => (
-                      <div key={index} className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                        <h4 className="font-semibold text-sm text-red-900">{issue.title}</h4>
-                        <p className="text-xs text-red-700 mt-1">{issue.description}</p>
-                        <p className="text-xs text-red-600 mt-1 font-mono truncate">{issue.url}</p>
+              ) : (
+                <div className={styles.byPageView}>
+                  {Object.entries(groupIssuesByPage(filteredIssues)).map(([url, issues]) => (
+                    <div key={url} className={styles.pageGroup}>
+                      <h3 className={styles.pageGroupTitle}>
+                        <a href={url} target="_blank" rel="noopener noreferrer">
+                          {url}
+                        </a>
+                        <span className={styles.pageGroupCount}>
+                          {issues.length} problème{issues.length > 1 ? 's' : ''}
+                        </span>
+                      </h3>
+                      <div className={styles.pageGroupIssues}>
+                        {issues.map((issue, idx) => (
+                          <ErrorCard
+                            key={idx}
+                            issue={issue}
+                          />
+                        ))}
                       </div>
-                    )) || <p className="text-sm text-gray-500">Aucune erreur détectée ✅</p>}
-                  </div>
-                </div>
-
-                {/* Warnings */}
-                <div className="card">
-                  <h3 className="text-lg font-bold text-yellow-600 mb-4">
-                    ⚠️ Avertissements ({audit.issues?.warnings?.length || 0})
-                  </h3>
-                  <div className="space-y-3 max-h-96 overflow-y-auto">
-                    {audit.issues?.warnings?.slice(0, 10).map((issue, index) => (
-                      <div key={index} className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <h4 className="font-semibold text-sm text-yellow-900">{issue.title}</h4>
-                        <p className="text-xs text-yellow-700 mt-1">{issue.description}</p>
-                        <p className="text-xs text-yellow-600 mt-1 font-mono truncate">{issue.url}</p>
-                      </div>
-                    )) || <p className="text-sm text-gray-500">Aucun avertissement</p>}
-                  </div>
-                </div>
-
-                {/* Opportunités */}
-                <div className="card">
-                  <h3 className="text-lg font-bold text-blue-600 mb-4">
-                    💡 Opportunités ({audit.issues?.opportunities?.length || 0})
-                  </h3>
-                  <div className="space-y-3 max-h-96 overflow-y-auto">
-                    {audit.issues?.opportunities?.slice(0, 10).map((issue, index) => (
-                      <div key={index} className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <h4 className="font-semibold text-sm text-blue-900">{issue.title}</h4>
-                        <p className="text-xs text-blue-700 mt-1">{issue.description}</p>
-                        <p className="text-xs text-blue-600 mt-1 font-mono truncate">{issue.url}</p>
-                      </div>
-                    )) || <p className="text-sm text-gray-500">Aucune opportunité identifiée</p>}
-                  </div>
-                </div>
-              </div>
-
-              {/* Download reminder */}
-              {audit.ppt_path && (
-                <div className="card mt-8 bg-green-50 border border-green-200 text-center">
-                  <h3 className="font-semibold text-green-900 mb-2">
-                    📄 Rapport complet disponible
-                  </h3>
-                  <p className="text-sm text-green-800 mb-4">
-                    Téléchargez le rapport PowerPoint pour avoir l'analyse complète avec toutes les recommandations
-                  </p>
-                  <button
-                    onClick={downloadPPT}
-                    className="btn btn-success"
-                  >
-                    Télécharger le PowerPoint
-                  </button>
+                    </div>
+                  ))}
                 </div>
               )}
             </>
           )}
-        </main>
+        </div>
       </div>
     </>
-  )
+  );
 }

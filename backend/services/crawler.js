@@ -23,6 +23,22 @@ class Crawler {
       
       if (this.visitedUrls.has(url)) continue;
       
+      // Filtrer les fichiers non-HTML (images, PDF, vidéos, etc.)
+      const fileExtensions = [
+        '.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.ico', '.bmp',
+        '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+        '.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mkv',
+        '.mp3', '.wav', '.ogg', '.m4a',
+        '.zip', '.rar', '.tar', '.gz', '.7z',
+        '.css', '.js', '.json', '.xml', '.txt'
+      ];
+      
+      const urlLower = url.toLowerCase();
+      if (fileExtensions.some(ext => urlLower.endsWith(ext))) {
+        console.log(`⏭️  Ignoré (fichier non-HTML): ${url}`);
+        continue;
+      }
+      
       try {
         await this.crawlPage(url);
         this.onProgress({
