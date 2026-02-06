@@ -67,10 +67,12 @@ class PPTGenerator {
     await fs.mkdir(exportDir, { recursive: true });
     
     const filePath = path.join(exportDir, fileName);
-    await this.ppt.writeFile({ fileName: filePath });
+    
+    // Écrire le fichier PowerPoint
+    await this.ppt.writeFile(filePath);
     
     console.log(`✅ PowerPoint généré: ${fileName}`);
-    return `/exports/${fileName}`;
+    return `exports/${fileName}`;
   }
 
   addCoverSlide() {
