@@ -120,6 +120,26 @@ export default function AuditDetail() {
     return { totalChecked, total, percentage: total > 0 ? Math.round((totalChecked / total) * 100) : 0 };
   };
 
+  // Calculer les stats de manière rétrocompatible (pour les anciens audits)
+  const getStats = (audit) => {
+    // Si les stats existent déjà (nouveau format), les utiliser
+    if (audit?.results?.stats) {
+      return audit.results.stats;
+    }
+    
+    // Sinon, calculer à partir des données disponibles (ancien format)
+    const errors = audit?.results?.issues?.errors || [];
+    const warnings = audit?.results?.issues?.warnings || [];
+    const opportunities = audit?.results?.issues?.opportunities || [];
+    
+    return {
+      pagesAnalyzed: audit?.results?.pagesAnalyzed || 0,
+      totalErrors: errors.length,
+      totalWarnings: warnings.length,
+      totalOpportunities: opportunities.length
+    };
+  };
+
   if (loading) {
     return (
       <div className={styles.loading}>
@@ -144,6 +164,7 @@ export default function AuditDetail() {
   const currentIssues = audit.results.issues[activeTab] || [];
   const filteredIssues = filterIssues(currentIssues);
   const progress = calculateProgress(filteredIssues);
+  const stats = getStats(audit); // Calcul rétrocompatible des stats
 
   return (
     <>
@@ -182,24 +203,24 @@ export default function AuditDetail() {
           <div className={styles.scoreStats}>
             <div className={styles.statItem}>
               <div className={styles.statLabel}>Pages analysées</div>
-              <div className={styles.statValue}>{audit.results.stats.pagesAnalyzed}</div>
+              <div className={styles.statValue}>{stats.pagesAnalyzed}</div>
             </div>
             <div className={styles.statItem}>
               <div className={styles.statLabel}>Erreurs</div>
               <div className={styles.statValue} style={{ color: '#dc2626' }}>
-                {audit.results.stats.totalErrors}
+                {stats.totalErrors}
               </div>
             </div>
             <div className={styles.statItem}>
               <div className={styles.statLabel}>Avertissements</div>
               <div className={styles.statValue} style={{ color: '#f59e0b' }}>
-                {audit.results.stats.totalWarnings}
+                {stats.totalWarnings}
               </div>
             </div>
             <div className={styles.statItem}>
               <div className={styles.statLabel}>Opportunités</div>
               <div className={styles.statValue} style={{ color: '#3b82f6' }}>
-                {audit.results.stats.totalOpportunities}
+                {stats.totalOpportunities}
               </div>
             </div>
           </div>
