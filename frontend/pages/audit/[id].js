@@ -4,6 +4,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import styles from '../../styles/AuditDetail.module.css';
 import ErrorCard from '../../components/ErrorCard';
+import AuditSummary from '../../components/AuditSummary';
 
 export default function AuditDetail() {
   const router = useRouter();
@@ -14,7 +15,7 @@ export default function AuditDetail() {
   const [error, setError] = useState(null);
   
   // États pour l'interface
-  const [activeTab, setActiveTab] = useState('errors'); // 'errors', 'warnings', 'opportunities'
+  const [activeTab, setActiveTab] = useState('summary'); // 'summary', 'errors', 'warnings', 'opportunities'
   const [viewMode, setViewMode] = useState('byType'); // 'byType', 'byPage'
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPriority, setSelectedPriority] = useState('all'); // 'all', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'
@@ -307,6 +308,12 @@ export default function AuditDetail() {
         {/* Onglets */}
         <div className={styles.tabs}>
           <button
+            className={`${styles.tab} ${activeTab === 'summary' ? styles.activeTab : ''}`}
+            onClick={() => setActiveTab('summary')}
+          >
+            📊 Résumé
+          </button>
+          <button
             className={`${styles.tab} ${activeTab === 'errors' ? styles.activeTab : ''}`}
             onClick={() => setActiveTab('errors')}
           >
@@ -327,48 +334,52 @@ export default function AuditDetail() {
         </div>
 
         {/* Contrôles */}
-        <div className={styles.controls}>
-          <div className={styles.viewModeToggle}>
-            <button
-              className={`${styles.viewBtn} ${viewMode === 'byType' ? styles.activeViewBtn : ''}`}
-              onClick={() => setViewMode('byType')}
-            >
-              Par type d'erreur
-            </button>
-            <button
-              className={`${styles.viewBtn} ${viewMode === 'byPage' ? styles.activeViewBtn : ''}`}
-              onClick={() => setViewMode('byPage')}
-            >
-              Par page
-            </button>
-          </div>
+        {activeTab !== 'summary' && (
+          <div className={styles.controls}>
+            <div className={styles.viewModeToggle}>
+              <button
+                className={`${styles.viewBtn} ${viewMode === 'byType' ? styles.activeViewBtn : ''}`}
+                onClick={() => setViewMode('byType')}
+              >
+                Par type d'erreur
+              </button>
+              <button
+                className={`${styles.viewBtn} ${viewMode === 'byPage' ? styles.activeViewBtn : ''}`}
+                onClick={() => setViewMode('byPage')}
+              >
+                Par page
+              </button>
+            </div>
 
-          <div className={styles.filters}>
-            <select 
-              value={selectedPriority}
-              onChange={(e) => setSelectedPriority(e.target.value)}
-              className={styles.priorityFilter}
-            >
-              <option value="all">Toutes les priorités</option>
-              <option value="CRITICAL">Critique uniquement</option>
-              <option value="HIGH">Élevé uniquement</option>
-              <option value="MEDIUM">Moyen uniquement</option>
-              <option value="LOW">Faible uniquement</option>
-            </select>
+            <div className={styles.filters}>
+              <select 
+                value={selectedPriority}
+                onChange={(e) => setSelectedPriority(e.target.value)}
+                className={styles.priorityFilter}
+              >
+                <option value="all">Toutes les priorités</option>
+                <option value="CRITICAL">Critique uniquement</option>
+                <option value="HIGH">Élevé uniquement</option>
+                <option value="MEDIUM">Moyen uniquement</option>
+                <option value="LOW">Faible uniquement</option>
+              </select>
 
-            <input
-              type="text"
-              placeholder="🔍 Rechercher..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className={styles.searchInput}
-            />
+              <input
+                type="text"
+                placeholder="🔍 Rechercher..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className={styles.searchInput}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Contenu */}
         <div className={styles.content}>
-          {filteredIssues.length === 0 ? (
+          {activeTab === 'summary' ? (
+            <AuditSummary audit={audit} stats={stats} />
+          ) : filteredIssues.length === 0 ? (
             <div className={styles.emptyState}>
               <p>🎉 Aucun problème trouvé dans cette catégorie !</p>
             </div>
