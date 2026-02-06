@@ -256,14 +256,14 @@ class Analyzer {
     
     // Vérifier robots.txt
     if (!this.metadata.robotsTxt) {
-      this.addOpportunity(this.pages[0].url, 'Robots.txt manquant', 'Aucun fichier robots.txt trouvé', 'MEDIUM');
+      this.addOpportunity(this.pages[0].url, 'Robots.txt manquant', 'Aucun fichier robots.txt trouvé', 'MEDIUM', 'robots_txt_missing');
     }
     
     // Vérifier sitemap.xml
     if (!this.metadata.sitemap || !this.metadata.sitemap.found) {
-      this.addWarning(this.pages[0].url, 'Sitemap.xml manquant', 'Aucun sitemap.xml trouvé', 'HIGH');
+      this.addWarning(this.pages[0].url, 'Sitemap.xml manquant', 'Aucun sitemap.xml trouvé', 'HIGH', 'sitemap_missing');
     } else if (this.metadata.sitemap.urlCount < this.pages.length) {
-      this.addWarning(this.pages[0].url, 'Sitemap incomplet', `${this.metadata.sitemap.urlCount} URLs dans sitemap vs ${this.pages.length} pages crawlées`, 'MEDIUM');
+      this.addWarning(this.pages[0].url, 'Sitemap incomplet', `${this.metadata.sitemap.urlCount} URLs dans sitemap vs ${this.pages.length} pages crawlées`, 'MEDIUM', 'sitemap_incomplete');
     }
     
     // Détecter les pages orphelines (pages sans lien entrant)
@@ -276,16 +276,30 @@ class Analyzer {
     
     this.pages.forEach(page => {
       if (!linkedPages.has(page.url) && page.url !== this.pages[0].url) {
-        this.addWarning(page.url, 'Page orpheline', 'Aucun lien interne ne pointe vers cette page', 'HIGH');
+        this.addWarning(page.url, 'Page orpheline', 'Aucun lien interne ne pointe vers cette page', 'HIGH', 'orphan_page');
       }
     });
     
-    // Détecter les liens cassés (404)
+    // Détecter les liens cassés (404) - EXCLURE les fichiers non-HTML
     const allUrls = new Set(this.pages.map(p => p.url));
+    const fileExtensions = [
+      '.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.ico', '.bmp',
+      '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+      '.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mkv',
+      '.mp3', '.wav', '.ogg', '.m4a',
+      '.zip', '.rar', '.tar', '.gz', '.7z',
+      '.css', '.js', '.json', '.xml', '.txt'
+    ];
+    
     this.pages.forEach(page => {
       page.internalLinks.forEach(link => {
-        if (!allUrls.has(link) && !link.includes('#')) {
-          this.addError(page.url, 'Lien cassé détecté', `Lien vers ${link} (probablement 404)`, 'HIGH');
+        // Ignorer les ancres et les fichiers non-HTML
+        if (link.includes('#')) return;
+        const linkLower = link.toLowerCase();
+        if (fileExtensions.some(ext => linkLower.endsWith(ext))) return;
+        
+        if (!allUrls.has(link)) {
+          this.addError(page.url, 'Lien cassé détecté', `Lien vers ${link} (page HTML probablement 404)`, 'HIGH', 'broken_link');
         }
       });
     });
@@ -293,37 +307,37 @@ class Analyzer {
     // Détecter les redirections en chaîne (> 2 redirections)
     this.pages.forEach(page => {
       if (page.redirectChain && page.redirectChain.length > 2) {
-        this.addWarning(page.url, 'Chaîne de redirections', `${page.redirectChain.length} redirections successives`, 'HIGH');
+        this.addWarning(page.url, 'Chaîne de redirections', `${page.redirectChain.length} redirections successives`, 'HIGH', 'redirect_chain');
       }
     });
     
     // Détecter les pages avec profondeur excessive (> 3 clics depuis homepage)
     this.pages.forEach(page => {
       if (page.depth && page.depth > 3) {
-        this.addOpportunity(page.url, 'Profondeur excessive', `Profondeur de ${page.depth} clics depuis la homepage`, 'MEDIUM');
+        this.addOpportunity(page.url, 'Profondeur excessive', `Profondeur de ${page.depth} clics depuis la homepage`, 'MEDIUM', 'excessive_depth');
       }
     });
     
     // Vérifier hreflang (si présent sur certaines pages mais pas toutes)
     const pagesWithHreflang = this.pages.filter(p => p.hreflang && p.hreflang.length > 0);
     if (pagesWithHreflang.length > 0 && pagesWithHreflang.length < this.pages.length) {
-      this.addWarning(this.pages[0].url, 'Hreflang incomplet', `${pagesWithHreflang.length}/${this.pages.length} pages ont hreflang`, 'MEDIUM');
+      this.addWarning(this.pages[0].url, 'Hreflang incomplet', `${pagesWithHreflang.length}/${this.pages.length} pages ont hreflang`, 'MEDIUM', 'hreflang_incomplete');
     }
     
     // Vérifier pagination cassée (next/prev)
     this.pages.forEach(page => {
       if (page.nextPage && !allUrls.has(page.nextPage)) {
-        this.addWarning(page.url, 'Pagination cassée', `rel="next" pointe vers ${page.nextPage} (introuvable)`, 'MEDIUM');
+        this.addWarning(page.url, 'Pagination cassée', `rel="next" pointe vers ${page.nextPage} (introuvable)`, 'MEDIUM', 'pagination_broken');
       }
       if (page.prevPage && !allUrls.has(page.prevPage)) {
-        this.addWarning(page.url, 'Pagination cassée', `rel="prev" pointe vers ${page.prevPage} (introuvable)`, 'MEDIUM');
+        this.addWarning(page.url, 'Pagination cassée', `rel="prev" pointe vers ${page.prevPage} (introuvable)`, 'MEDIUM', 'pagination_broken');
       }
     });
     
     // Vérifier AMP
     const pagesWithAmp = this.pages.filter(p => p.hasAmp);
     if (pagesWithAmp.length > 0) {
-      this.addOpportunity(this.pages[0].url, 'AMP détecté', `${pagesWithAmp.length} pages ont une version AMP`, 'LOW');
+      this.addOpportunity(this.pages[0].url, 'AMP détecté', `${pagesWithAmp.length} pages ont une version AMP`, 'LOW', 'amp_detected');
     }
   }
 
