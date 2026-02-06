@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Outil d'audit SEO technique avec export PowerPoint",
   "main": "backend/server.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev:backend": "nodemon backend/server.js",
     "dev:frontend": "cd frontend && npm run dev",
