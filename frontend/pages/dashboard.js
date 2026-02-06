@@ -28,7 +28,7 @@ export default function Dashboard() {
     try {
       const [auditsRes, statsRes] = await Promise.all([
         axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/audit`,
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/audits`,
           { headers: { Authorization: `Bearer ${token}` } }
         ),
         axios.get(
