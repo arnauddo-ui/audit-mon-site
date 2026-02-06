@@ -79,14 +79,16 @@ async function runAudit(auditId, url) {
       }
     });
     
-    const pages = await crawler.crawl();
+    const crawlResult = await crawler.crawl();
+    const pages = crawlResult.pages;
+    const metadata = crawlResult.metadata;
     
     if (pages.length === 0) {
       throw new Error('Aucune page crawlée');
     }
     
     // 2. Analyser les pages
-    const analyzer = new Analyzer(pages);
+    const analyzer = new Analyzer(pages, metadata);
     const analysisResult = await analyzer.analyze();
     
     // 3. Obtenir Web Vitals (seulement pour la homepage)
@@ -198,7 +200,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// GET /api/audit/:id/compare - Comparer avec audits précédents
+// GET /api/audits/:id/compare - Comparer avec audits précédents
 router.get('/:id/compare', authMiddleware, async (req, res) => {
   try {
     const audit = await Audit.findById(req.params.id);
@@ -222,6 +224,68 @@ router.get('/:id/compare', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Erreur comparaison:', error);
     res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// GET /api/audits/:id/download - Télécharger le PowerPoint
+router.get('/:id/download', authMiddleware, async (req, res) => {
+  try {
+    const audit = await Audit.findById(req.params.id);
+    
+    if (!audit) {
+      return res.status(404).json({ error: 'Audit non trouvé' });
+    }
+    
+    // Vérifier que l'audit appartient à l'utilisateur (sauf admin)
+    if (audit.user_id !== req.user.id && !req.user.is_admin) {
+      return res.status(403).json({ error: 'Accès refusé' });
+    }
+    
+    if (audit.status !== 'completed') {
+      return res.status(400).json({ error: 'L\'audit n\'est pas terminé' });
+    }
+    
+    const path = require('path');
+    const fs = require('fs');
+    const PPTGenerator = require('../services/pptGenerator');
+    
+    let filePath = null;
+    
+    // Si le PowerPoint existe déjà, l'utiliser
+    if (audit.ppt_path) {
+      filePath = path.join(__dirname, '..', audit.ppt_path);
+    }
+    
+    // Si le fichier n'existe pas, le régénérer
+    if (!filePath || !fs.existsSync(filePath)) {
+      console.log('PowerPoint introuvable, régénération...');
+      
+      // Parser les données de l'audit
+      const issues = typeof audit.issues === 'string' ? JSON.parse(audit.issues) : audit.issues;
+      const crawlData = typeof audit.crawl_data === 'string' ? JSON.parse(audit.crawl_data) : audit.crawl_data;
+      
+      // Régénérer le PowerPoint
+      const generator = new PPTGenerator();
+      filePath = await generator.generate({
+        url: audit.url,
+        score: audit.score || 0,
+        totalPages: audit.total_pages || 0,
+        totalErrors: audit.total_errors || 0,
+        totalWarnings: audit.total_warnings || 0,
+        totalOpportunities: audit.total_opportunities || 0,
+        issues: issues,
+        crawlData: crawlData
+      });
+      
+      // Mettre à jour le chemin dans la base de données
+      await Audit.updatePptPath(audit.id, filePath);
+    }
+    
+    res.download(filePath, `audit_${audit.url.replace(/https?:\/\//, '')}_${audit.id}.pptx`);
+    
+  } catch (error) {
+    console.error('Erreur téléchargement:', error);
+    res.status(500).json({ error: 'Erreur lors de la génération du PowerPoint' });
   }
 });
 
