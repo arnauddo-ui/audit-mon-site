@@ -27,7 +27,19 @@ export default function AuditDetail() {
 
   const fetchAudit = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/audits/${id}`);
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        router.push('/');
+        return;
+      }
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/audits/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
       if (!response.ok) throw new Error('Audit non trouvé');
       const data = await response.json();
       setAudit(data);
@@ -40,7 +52,14 @@ export default function AuditDetail() {
 
   const downloadReport = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/audits/${id}/download`);
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/audits/${id}/download`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -154,6 +173,21 @@ export default function AuditDetail() {
       <div className={styles.error}>
         <h1>❌ Erreur</h1>
         <p>{error || 'Audit introuvable'}</p>
+        <Link href="/dashboard">
+          <a className={styles.backBtn}>← Retour au tableau de bord</a>
+        </Link>
+      </div>
+    );
+  }
+
+  // Si l'audit est en cours (pending), afficher un message d'attente
+  if (audit.status === 'pending' || !audit.results) {
+    return (
+      <div className={styles.loading}>
+        <div className={styles.spinner}></div>
+        <h1>⏳ Audit en cours...</h1>
+        <p>L'analyse de <strong>{audit.url}</strong> est en cours.</p>
+        <p>Cela peut prendre 2-5 minutes selon la taille du site.</p>
         <Link href="/dashboard">
           <a className={styles.backBtn}>← Retour au tableau de bord</a>
         </Link>
