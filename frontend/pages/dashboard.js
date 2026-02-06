@@ -55,6 +55,34 @@ export default function Dashboard() {
     router.push('/')
   }
 
+  const handleDelete = async (auditId, url) => {
+    // Confirmation avant suppression
+    const confirmation = confirm(
+      `⚠️ ATTENTION\n\nVous allez supprimer l'audit de "${url}".\n\nCette action est irréversible.\n\nVoulez-vous continuer ?`
+    )
+    
+    if (!confirmation) {
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('token')
+      
+      await axios.delete(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/audits/${auditId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      
+      // Recharger les données
+      loadData(token)
+      
+      alert('✅ Audit supprimé avec succès')
+    } catch (error) {
+      console.error('Erreur suppression:', error)
+      alert('❌ Erreur lors de la suppression de l\'audit')
+    }
+  }
+
   const getStatusBadge = (status) => {
     const badges = {
       pending: 'bg-yellow-100 text-yellow-800',
@@ -199,11 +227,20 @@ export default function Dashboard() {
                           {audit.total_pages || '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <Link href={`/audit/${audit.id}`}>
-                            <button className="text-primary hover:text-blue-800 font-medium">
-                              Voir →
+                          <div className="flex gap-3 items-center">
+                            <Link href={`/audit/${audit.id}`}>
+                              <button className="text-primary hover:text-blue-800 font-medium">
+                                Voir →
+                              </button>
+                            </Link>
+                            <button 
+                              onClick={() => handleDelete(audit.id, audit.url)}
+                              className="text-red-600 hover:text-red-800 font-medium"
+                              title="Supprimer cet audit"
+                            >
+                              🗑️
                             </button>
-                          </Link>
+                          </div>
                         </td>
                       </tr>
                     ))}
