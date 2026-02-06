@@ -144,6 +144,15 @@ class Audit {
     );
     return result.rows;
   }
+  
+  // Mettre à jour le chemin du PowerPoint
+  static async updatePptPath(id, pptPath) {
+    const result = await query(
+      'UPDATE audits SET ppt_path = $1 WHERE id = $2 RETURNING *',
+      [pptPath, id]
+    );
+    return result.rows[0];
+  }
 }
 
 module.exports = Audit;
