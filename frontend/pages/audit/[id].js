@@ -19,6 +19,7 @@ export default function AuditDetail() {
   const [viewMode, setViewMode] = useState('byType'); // 'byType', 'byPage'
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPriority, setSelectedPriority] = useState('all'); // 'all', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'
+  const [errorTypeFilter, setErrorTypeFilter] = useState(null); // Filtre par errorType depuis le résumé
   
   useEffect(() => {
     if (id) {
@@ -100,6 +101,14 @@ export default function AuditDetail() {
     }
   };
 
+  // Naviguer depuis le résumé vers un onglet avec filtre
+  const handleNavigateFromSummary = (tab, errorType) => {
+    setActiveTab(tab);
+    setErrorTypeFilter(errorType);
+    setSearchTerm('');
+    setSelectedPriority('all');
+  };
+
   // Grouper les issues par type d'erreur
   const groupIssuesByType = (issues) => {
     const grouped = {};
@@ -131,6 +140,11 @@ export default function AuditDetail() {
   // Filtrer les issues
   const filterIssues = (issues) => {
     let filtered = issues;
+
+    // Filtre par errorType (depuis le résumé)
+    if (errorTypeFilter) {
+      filtered = filtered.filter(i => i.errorType === errorTypeFilter || i.title === errorTypeFilter);
+    }
 
     // Filtre par priorité
     if (selectedPriority !== 'all') {
@@ -309,29 +323,66 @@ export default function AuditDetail() {
         <div className={styles.tabs}>
           <button
             className={`${styles.tab} ${activeTab === 'summary' ? styles.activeTab : ''}`}
-            onClick={() => setActiveTab('summary')}
+            onClick={() => {
+              setActiveTab('summary');
+              setErrorTypeFilter(null);
+            }}
           >
             📊 Résumé
           </button>
           <button
             className={`${styles.tab} ${activeTab === 'errors' ? styles.activeTab : ''}`}
-            onClick={() => setActiveTab('errors')}
+            onClick={() => {
+              setActiveTab('errors');
+              setErrorTypeFilter(null);
+            }}
           >
             ❌ Erreurs ({audit.results.issues.errors?.length || 0})
           </button>
           <button
             className={`${styles.tab} ${activeTab === 'warnings' ? styles.activeTab : ''}`}
-            onClick={() => setActiveTab('warnings')}
+            onClick={() => {
+              setActiveTab('warnings');
+              setErrorTypeFilter(null);
+            }}
           >
             ⚠️ Avertissements ({audit.results.issues.warnings?.length || 0})
           </button>
           <button
             className={`${styles.tab} ${activeTab === 'opportunities' ? styles.activeTab : ''}`}
-            onClick={() => setActiveTab('opportunities')}
+            onClick={() => {
+              setActiveTab('opportunities');
+              setErrorTypeFilter(null);
+            }}
           >
             💡 Opportunités ({audit.results.issues.opportunities?.length || 0})
           </button>
         </div>
+
+        {/* Badge filtre actif */}
+        {errorTypeFilter && activeTab !== 'summary' && (
+          <div style={{ padding: '1rem', backgroundColor: '#eff6ff', border: '1px solid #3b82f6', borderRadius: '8px', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '14px', color: '#1e40af' }}>
+                🔍 <strong>Filtre actif :</strong> {errorTypeFilter.replace(/_/g, ' ')}
+              </span>
+              <button 
+                onClick={() => setErrorTypeFilter(null)}
+                style={{ 
+                  padding: '4px 12px', 
+                  backgroundColor: '#3b82f6', 
+                  color: 'white', 
+                  border: 'none', 
+                  borderRadius: '4px', 
+                  cursor: 'pointer',
+                  fontSize: '12px'
+                }}
+              >
+                ✕ Réinitialiser
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Contrôles */}
         {activeTab !== 'summary' && (
@@ -378,7 +429,7 @@ export default function AuditDetail() {
         {/* Contenu */}
         <div className={styles.content}>
           {activeTab === 'summary' ? (
-            <AuditSummary audit={audit} stats={stats} />
+            <AuditSummary audit={audit} stats={stats} onNavigate={handleNavigateFromSummary} />
           ) : filteredIssues.length === 0 ? (
             <div className={styles.emptyState}>
               <p>🎉 Aucun problème trouvé dans cette catégorie !</p>
