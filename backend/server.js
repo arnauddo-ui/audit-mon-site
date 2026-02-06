@@ -47,7 +47,7 @@ app.get('/health', (req, res) => {
 });
 
 // Routes API
-app.use('/api/audit', auditRoutes);
+app.use('/api/audits', auditRoutes);
 app.use('/api/admin', adminRoutes);
 // V2: app.use('/api/auth', authRoutes);
 // V2: app.use('/api/payment', paymentRoutes);
