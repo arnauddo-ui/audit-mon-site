@@ -1,0 +1,43 @@
+{
+  "name": "audit-mon-site",
+  "version": "1.0.0",
+  "description": "Outil d'audit SEO technique avec export PowerPoint",
+  "main": "backend/server.js",
+  "scripts": {
+    "dev:backend": "nodemon backend/server.js",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "start": "node backend/server.js",
+    "build:frontend": "cd frontend && npm run build",
+    "install:all": "npm install && cd frontend && npm install"
+  },
+  "keywords": ["seo", "audit", "crawler", "powerpoint"],
+  "author": "Arnaud Doguet",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "pg": "^8.11.3",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "axios": "^1.6.2",
+    "cheerio": "^1.0.0-rc.12",
+    "puppeteer": "^21.6.1",
+    "bull": "^4.12.0",
+    "redis": "^4.6.11",
+    "pptxgenjs": "^3.12.0",
+    "lighthouse": "^11.4.0",
+    "node-cron": "^3.0.3",
+    "validator": "^13.11.0",
+    "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0",
+    "compression": "^1.7.4",
+    "morgan": "^1.10.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "concurrently": "^8.2.2"
+  }
+}
