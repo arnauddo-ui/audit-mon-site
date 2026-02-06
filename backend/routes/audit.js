@@ -79,14 +79,16 @@ async function runAudit(auditId, url) {
       }
     });
     
-    const pages = await crawler.crawl();
+    const crawlResult = await crawler.crawl();
+    const pages = crawlResult.pages;
+    const metadata = crawlResult.metadata;
     
     if (pages.length === 0) {
       throw new Error('Aucune page crawlée');
     }
     
     // 2. Analyser les pages
-    const analyzer = new Analyzer(pages);
+    const analyzer = new Analyzer(pages, metadata);
     const analysisResult = await analyzer.analyze();
     
     // 3. Obtenir Web Vitals (seulement pour la homepage)
@@ -198,7 +200,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// GET /api/audit/:id/compare - Comparer avec audits précédents
+// GET /api/audits/:id/compare - Comparer avec audits précédents
 router.get('/:id/compare', authMiddleware, async (req, res) => {
   try {
     const audit = await Audit.findById(req.params.id);
@@ -221,6 +223,41 @@ router.get('/:id/compare', authMiddleware, async (req, res) => {
     
   } catch (error) {
     console.error('Erreur comparaison:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// GET /api/audits/:id/download - Télécharger le PowerPoint
+router.get('/:id/download', authMiddleware, async (req, res) => {
+  try {
+    const audit = await Audit.findById(req.params.id);
+    
+    if (!audit) {
+      return res.status(404).json({ error: 'Audit non trouvé' });
+    }
+    
+    // Vérifier que l'audit appartient à l'utilisateur (sauf admin)
+    if (audit.user_id !== req.user.id && !req.user.is_admin) {
+      return res.status(403).json({ error: 'Accès refusé' });
+    }
+    
+    if (!audit.ppt_path) {
+      return res.status(404).json({ error: 'PowerPoint non disponible' });
+    }
+    
+    const path = require('path');
+    const fs = require('fs');
+    
+    const filePath = path.join(__dirname, '..', audit.ppt_path);
+    
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Fichier PowerPoint introuvable' });
+    }
+    
+    res.download(filePath, `audit_${audit.id}.pptx`);
+    
+  } catch (error) {
+    console.error('Erreur téléchargement:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
