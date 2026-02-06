@@ -7,19 +7,26 @@ class Crawler {
     this.baseUrl = baseUrl;
     this.baseHostname = new URL(baseUrl).hostname;
     this.visitedUrls = new Set();
-    this.queue = [baseUrl];
+    this.queue = [{ url: baseUrl, depth: 0 }]; // Ajouter profondeur
     this.pages = [];
     this.maxPages = options.maxPages || parseInt(process.env.MAX_PAGES_PER_CRAWL) || 10000;
     this.timeout = options.timeout || 30000;
-    this.userAgent = 'AuditMonSite/1.0 (SEO Crawler)';
+    this.userAgent = 'AuditMonSite/2.0 (SEO Crawler)';
     this.onProgress = options.onProgress || (() => {});
+    this.sitemap = null;
+    this.robotsTxt = null;
+    this.brokenLinks = new Map(); // URL → array de pages qui pointent vers elle
   }
 
   async crawl() {
     console.log(`🕷️  Démarrage du crawl de ${this.baseUrl}`);
     
+    // Crawler robots.txt et sitemap.xml
+    await this.fetchRobotsTxt();
+    await this.fetchSitemap();
+    
     while (this.queue.length > 0 && this.visitedUrls.size < this.maxPages) {
-      const url = this.queue.shift();
+      const { url, depth } = this.queue.shift();
       
       if (this.visitedUrls.has(url)) continue;
       
@@ -40,7 +47,7 @@ class Crawler {
       }
       
       try {
-        await this.crawlPage(url);
+        await this.crawlPage(url, depth);
         this.onProgress({
           current: this.visitedUrls.size,
           total: this.maxPages,
@@ -51,7 +58,8 @@ class Crawler {
         this.pages.push({
           url,
           status: 'error',
-          error: error.message
+          error: error.message,
+          depth
         });
       }
       
@@ -60,10 +68,19 @@ class Crawler {
     }
     
     console.log(`✅ Crawl terminé: ${this.visitedUrls.size} pages`);
-    return this.pages;
+    
+    return {
+      pages: this.pages,
+      metadata: {
+        robotsTxt: this.robotsTxt,
+        sitemap: this.sitemap,
+        totalPages: this.pages.length,
+        maxDepth: Math.max(...this.pages.map(p => p.depth || 0))
+      }
+    };
   }
 
-  async crawlPage(url) {
+  async crawlPage(url, depth = 0) {
     this.visitedUrls.add(url);
     
     const startTime = Date.now();
@@ -90,6 +107,7 @@ class Crawler {
         loadTime,
         finalUrl: response.request.res.responseUrl || url,
         redirectChain: this.getRedirectChain(response),
+        depth, // Ajouter la profondeur
         
         // Meta tags
         title: $('title').text().trim(),
@@ -141,6 +159,10 @@ class Crawler {
           href: $(el).attr('href')
         })).get(),
         
+        // Pagination
+        nextPage: $('link[rel="next"]').attr('href') || '',
+        prevPage: $('link[rel="prev"]').attr('href') || '',
+        
         // Security
         hasHttps: url.startsWith('https'),
         
@@ -150,11 +172,11 @@ class Crawler {
       
       this.pages.push(pageData);
       
-      // Ajouter les liens internes à la queue
+      // Ajouter les liens internes à la queue (avec profondeur + 1)
       pageData.internalLinks.forEach(link => {
         const absoluteUrl = this.makeAbsoluteUrl(link, url);
-        if (absoluteUrl && !this.visitedUrls.has(absoluteUrl) && !this.queue.includes(absoluteUrl)) {
-          this.queue.push(absoluteUrl);
+        if (absoluteUrl && !this.visitedUrls.has(absoluteUrl) && !this.queue.some(item => item.url === absoluteUrl)) {
+          this.queue.push({ url: absoluteUrl, depth: depth + 1 });
         }
       });
       
@@ -242,6 +264,52 @@ class Crawler {
       return [{ redirected: true }];
     }
     return chain;
+  }
+
+  async fetchRobotsTxt() {
+    try {
+      const robotsUrl = new URL('/robots.txt', this.baseUrl).toString();
+      const response = await axios.get(robotsUrl, {
+        timeout: 5000,
+        validateStatus: () => true
+      });
+      
+      if (response.status === 200) {
+        this.robotsTxt = response.data;
+        console.log('✅ Robots.txt trouvé');
+      }
+    } catch (error) {
+      console.log('⚠️  Pas de robots.txt');
+    }
+  }
+
+  async fetchSitemap() {
+    try {
+      const sitemapUrl = new URL('/sitemap.xml', this.baseUrl).toString();
+      const response = await axios.get(sitemapUrl, {
+        timeout: 5000,
+        validateStatus: () => true
+      });
+      
+      if (response.status === 200) {
+        const cheerio = require('cheerio');
+        const $ = cheerio.load(response.data, { xmlMode: true });
+        const urls = [];
+        
+        $('url > loc').each((i, el) => {
+          urls.push($(el).text());
+        });
+        
+        this.sitemap = {
+          found: true,
+          urlCount: urls.length,
+          urls: urls
+        };
+        console.log(`✅ Sitemap.xml trouvé (${urls.length} URLs)`);
+      }
+    } catch (error) {
+      console.log('⚠️  Pas de sitemap.xml');
+    }
   }
 
   getWordCount($) {
