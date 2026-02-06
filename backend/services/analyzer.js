@@ -254,6 +254,16 @@ class Analyzer {
     
     // === NOUVELLES ANALYSES V2.0 ===
     
+    // Vérifier que metadata existe
+    if (!this.metadata) {
+      this.metadata = {};
+    }
+    
+    // Vérifier qu'il y a des pages avant d'ajouter des issues globales
+    if (this.pages.length === 0) {
+      return;
+    }
+    
     // Vérifier robots.txt
     if (!this.metadata.robotsTxt) {
       this.addOpportunity(this.pages[0].url, 'Robots.txt manquant', 'Aucun fichier robots.txt trouvé', 'MEDIUM', 'robots_txt_missing');
